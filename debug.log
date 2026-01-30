@@ -1,0 +1,44 @@
+
+=== While loop execution frequency statistics ===
+loop execution count: 13866
+running time: 400.62 seconds
+overall average frequency: 34.61 Hz
+moving average frequency: 32.80 Hz (last 100 times)
+frequency range: 26.25 - 36.50 Hz
+average loop time: 28.89 ms
+recent loop time: 30.49 ms
+=============================
+[Viz] Local L: [ 0.9963559 -0.3034133  0.6695156] | World L: [0.15339419 0.9963616  1.4295156 ]
+[Viz] Local R: [ 1.2334728  -0.43711996  0.61820704] | World R: [0.28709623 1.2334812  1.378207  ]
+[Viz] Local L: [ 0.9963559 -0.3034133  0.6695156] | World L: [0.15339419 0.9963616  1.4295156 ]
+[Viz] Local R: [ 1.2334728  -0.43711996  0.61820704] | World R: [0.28709623 1.2334812  1.378207  ]
+[Performance] A:0.1ms, E:29.1ms, S:0.0ms, T:29.2ms
+[Viz] Local L: [ 0.9963559 -0.3034133  0.6695156] | World L: [0.15339419 0.9963616  1.4295156 ]
+[Viz] Local R: [ 1.2334728  -0.43711996  0.61820704] | World R: [0.28709623 1.2334812  1.378207  ]
+[Viz] Local L: [ 0.9963559 -0.3034133  0.6695156] | World L: [0.15339419 0.9963616  1.4295156 ]
+[Viz] Local R: [ 1.2334728  -0.43711996  0.61820704] | World R: [0.28709623 1.2334812  1.378207  ]
+^CProcess LogListenerProcess:
+Traceback (most recent call last):
+  File "/home/user/anaconda3/envs/unitree_sim_env/lib/python3.10/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/home/user/anaconda3/envs/unitree_sim_env/lib/python3.10/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/user/anaconda3/envs/unitree_sim_env/lib/python3.10/site-packages/logging_mp/__init__.py", line 38, in _listener_process
+    _stop_process_event.wait()
+  File "/home/user/anaconda3/envs/unitree_sim_env/lib/python3.10/multiprocessing/synchronize.py", line 349, in wait
+    self._cond.wait(timeout)
+  File "/home/user/anaconda3/envs/unitree_sim_env/lib/python3.10/multiprocessing/synchronize.py", line 261, in wait
+    return self._wait_semaphore.acquire(True, timeout)
+KeyboardInterrupt
+
+received signal 2, stopping controller...
+[DDSActionProvider] ActionProvider stop
+[DDSActionProvider] ActionProvider stopped
+[SimpleController] the controller is stopped
+[DDSManager] publish loop thread stopped
+^C
+received signal 2, stopping controller...
+^C
+received signal 2, stopping controller...
+^C
+received signal 2, stopping controller...

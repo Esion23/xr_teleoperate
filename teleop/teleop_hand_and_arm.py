@@ -12,6 +12,9 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
+from unitree_sim_isaaclab.tools.shared_memory_utils import PoseWriter
+import numpy as np
+
 from unitree_sdk2py.core.channel import ChannelFactoryInitialize # dds 
 from televuer import TeleVuerWrapper
 from teleop.robot_control.robot_arm import G1_29_ArmController, G1_23_ArmController, H1_2_ArmController, H1_ArmController
@@ -20,6 +23,7 @@ from teleimager.image_client import ImageClient
 from teleop.utils.episode_writer import EpisodeWriter
 from teleop.utils.ipc import IPC_Server
 from teleop.utils.motion_switcher import MotionSwitcher, LocoClientWrapper
+from teleop.utils.error_logger import IndependentErrorLogger
 from sshkeyboard import listen_keyboard, stop_listening
 
 # for simulation
@@ -70,7 +74,21 @@ def get_state() -> dict:
         "RECORD_RUNNING": RECORD_RUNNING,
     }
 
-if __name__ == '__main__':
+from scipy.spatial.transform import Rotation as R
+
+def rotation_matrix_to_quaternion(R_mat):
+    # Check if matrix is valid (orthogonality or non-zero determinant)
+    # Simple check: check if it's near zero
+    if np.abs(R_mat).sum() < 1e-6:
+        return np.array([0.0, 0.0, 0.0, 1.0]) # Identity [x, y, z, w]
+        
+    try:
+        r = R.from_matrix(R_mat)
+        return r.as_quat() # returns [x, y, z, w]
+    except Exception:
+        return np.array([0.0, 0.0, 0.0, 1.0])
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # basic control parameters
     parser.add_argument('--frequency', type = float, default = 30.0, help = 'control and record \'s frequency')
@@ -103,6 +121,9 @@ if __name__ == '__main__':
             ChannelFactoryInitialize(1, networkInterface=args.network_interface)
         else:
             ChannelFactoryInitialize(0, networkInterface=args.network_interface)
+
+        # Initialize pose writer for visualization
+        pose_writer = PoseWriter()
 
         # ipc communication mode. client usage: see utils/ipc.py
         if args.ipc:
@@ -238,6 +259,10 @@ if __name__ == '__main__':
                                      task_steps = args.task_steps,
                                      frequency = args.frequency, 
                                      rerun_log = not args.headless)
+        
+        # Initialize independent error logger
+        error_logger = IndependentErrorLogger()
+        logger_mp.info(f"Error logging initialized at {error_logger.log_file}")
 
         logger_mp.info("----------------------------------------------------------------")
         logger_mp.info("🟢  Press [r] to start syncing the robot with your movements.")
@@ -256,6 +281,13 @@ if __name__ == '__main__':
 
         logger_mp.info("---------------------🚀start Tracking🚀-------------------------")
         arm_ctrl.speed_gradual_max()
+        
+        last_sol_q = None
+        last_target_l_pos = None
+        last_target_r_pos = None
+        last_target_l_rot = None
+        last_target_r_rot = None
+
         # main loop. robot start to follow VR user's motion
         while not STOP:
             start_time = time.time()
@@ -327,9 +359,108 @@ if __name__ == '__main__':
             # solve ik using motor data and wrist pose, then use ik results to control arms.
             time_ik_start = time.time()
             sol_q, sol_tauff  = arm_ik.solve_ik(tele_data.left_wrist_pose, tele_data.right_wrist_pose, current_lr_arm_q, current_lr_arm_dq)
+            import numpy as np
             time_ik_end = time.time()
             logger_mp.debug(f"ik:\t{round(time_ik_end - time_ik_start, 6)}")
             arm_ctrl.ctrl_dual_arm(sol_q, sol_tauff)
+
+            # Error Analysis
+            try:
+                # 1. Tracking Error: Target vs Actual (FK)
+                # Now compute_fk returns pos and rot matrices
+                l_fk_pos, r_fk_pos, l_fk_rot, r_fk_rot = arm_ik.compute_fk(current_lr_arm_q)
+                
+                # tele_data.left_wrist_pose is 4x4 matrix
+                target_l_pos = tele_data.left_wrist_pose[:3, 3]
+                target_r_pos = tele_data.right_wrist_pose[:3, 3]
+                target_l_rot = tele_data.left_wrist_pose[:3, :3]
+                target_r_rot = tele_data.right_wrist_pose[:3, :3]
+                
+                # Use LAST frame's target to compute steady-state tracking error
+                if last_target_l_pos is not None:
+                    # Position Error (Euclidean distance)
+                    track_pos_err_l = np.linalg.norm(last_target_l_pos - l_fk_pos)
+                    track_pos_err_r = np.linalg.norm(last_target_r_pos - r_fk_pos)
+                    
+                    # Rotation Error (Geodesic distance / Angle difference)
+                    R_diff_l = last_target_l_rot @ l_fk_rot.T
+                    track_rot_err_l = np.arccos(np.clip((np.trace(R_diff_l) - 1) / 2, -1.0, 1.0))
+                    
+                    R_diff_r = last_target_r_rot @ r_fk_rot.T
+                    track_rot_err_r = np.arccos(np.clip((np.trace(R_diff_r) - 1) / 2, -1.0, 1.0))
+                else:
+                    track_pos_err_l = 0.0
+                    track_pos_err_r = 0.0
+                    track_rot_err_l = 0.0
+                    track_rot_err_r = 0.0
+
+                
+                # 2. Solver Error: Target vs Solution (FK)
+                l_sol_pos, r_sol_pos, l_sol_rot, r_sol_rot = arm_ik.compute_fk(sol_q)
+                
+                solve_pos_err_l = np.linalg.norm(target_l_pos - l_sol_pos)
+                solve_pos_err_r = np.linalg.norm(target_r_pos - r_sol_pos)
+                
+                R_sol_diff_l = target_l_rot @ l_sol_rot.T
+                solve_rot_err_l = np.arccos(np.clip((np.trace(R_sol_diff_l) - 1) / 2, -1.0, 1.0))
+                
+                R_sol_diff_r = target_r_rot @ r_sol_rot.T
+                solve_rot_err_r = np.arccos(np.clip((np.trace(R_sol_diff_r) - 1) / 2, -1.0, 1.0))
+
+                # Write VR targets to shared memory for Isaac Lab visualization
+                if args.sim:
+                    try:
+                        # Extract translation
+                        l_pos = tele_data.left_wrist_pose[:3, 3]
+                        r_pos = tele_data.right_wrist_pose[:3, 3]
+                        
+                        # Extract rotation and convert to quaternion [x, y, z, w]
+                        l_rot_mat = tele_data.left_wrist_pose[:3, :3]
+                        r_rot_mat = tele_data.right_wrist_pose[:3, :3]
+                        l_quat = rotation_matrix_to_quaternion(l_rot_mat)
+                        r_quat = rotation_matrix_to_quaternion(r_rot_mat)
+                        
+                        # Pack data: [x, y, z, qx, qy, qz, qw]
+                        poses = np.zeros((2, 7))
+                        poses[0] = np.concatenate([l_pos, l_quat]) # Left Hand
+                        poses[1] = np.concatenate([r_pos, r_quat]) # Right Hand
+                        
+                        pose_writer.write_poses(poses)
+                    except Exception as e:
+                        logger_mp.warning(f"Failed to write visualization poses: {e}")
+
+                # 3. Execution Error: Solution vs Actual (Joint Space)
+                # Compare current actual state with LAST frame's target command
+                if last_sol_q is not None:
+                    exec_err = np.linalg.norm(last_sol_q - current_lr_arm_q)
+                else:
+                    exec_err = 0.0
+                
+                # Update history
+                last_sol_q = sol_q.copy()
+                last_target_l_pos = target_l_pos.copy()
+                last_target_r_pos = target_r_pos.copy()
+                last_target_l_rot = target_l_rot.copy()
+                last_target_r_rot = target_r_rot.copy()
+
+                # Log errors independently if START is True (robot is following VR)
+                if START:
+                    error_data = {
+                        "track_pos_err_l": float(track_pos_err_l),
+                        "track_pos_err_r": float(track_pos_err_r),
+                        "track_rot_err_l": float(track_rot_err_l),
+                        "track_rot_err_r": float(track_rot_err_r),
+                        "solve_pos_err_l": float(solve_pos_err_l),
+                        "solve_pos_err_r": float(solve_pos_err_r),
+                        "solve_rot_err_l": float(solve_rot_err_l),
+                        "solve_rot_err_r": float(solve_rot_err_r),
+                        "exec_err": float(exec_err),
+                        "ik_time": float(time_ik_end - time_ik_start)
+                    }
+                    error_logger.log(time.time(), error_data)
+
+            except Exception as e:
+                logger_mp.warning(f"Error calculation failed: {e}")
 
             # record data
             if args.record:

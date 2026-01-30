@@ -250,6 +250,19 @@ class G1_29_ArmIK:
         robot_right_pose[:3, 3] *= scale_factor
         return robot_left_pose, robot_right_pose
 
+    def compute_fk(self, q):
+        """Compute Forward Kinematics for the given joint configuration."""
+        pin.forwardKinematics(self.reduced_robot.model, self.reduced_robot.data, q)
+        pin.updateFramePlacements(self.reduced_robot.model, self.reduced_robot.data)
+        
+        l_ee_pos = self.reduced_robot.data.oMf[self.L_hand_id].translation
+        r_ee_pos = self.reduced_robot.data.oMf[self.R_hand_id].translation
+        
+        l_ee_rot = self.reduced_robot.data.oMf[self.L_hand_id].rotation
+        r_ee_rot = self.reduced_robot.data.oMf[self.R_hand_id].rotation
+        
+        return l_ee_pos, r_ee_pos, l_ee_rot, r_ee_rot
+
     def solve_ik(self, left_wrist, right_wrist, current_lr_arm_motor_q = None, current_lr_arm_motor_dq = None):
         if current_lr_arm_motor_q is not None:
             self.init_data = current_lr_arm_motor_q

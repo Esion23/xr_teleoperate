@@ -7,3 +7,12 @@
 [submodule "teleop/teleimager"]
 	path = teleop/teleimager
 	url = https://github.com/unitreerobotics/teleimager.git
+[submodule "IsaacLab"]
+	path = IsaacLab
+	url = https://github.com/isaac-sim/IsaacLab.git
+[submodule "unitree_sdk2_python"]
+	path = unitree_sdk2_python
+	url = https://github.com/unitreerobotics/unitree_sdk2_python
+[submodule "unitree_sim_isaaclab"]
+	path = unitree_sim_isaaclab
+	url = https://github.com/unitreerobotics/unitree_sim_isaaclab.git
