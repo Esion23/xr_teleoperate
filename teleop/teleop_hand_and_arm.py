@@ -24,6 +24,8 @@ from teleop.utils.episode_writer import EpisodeWriter
 from teleop.utils.ipc import IPC_Server
 from teleop.utils.motion_switcher import MotionSwitcher, LocoClientWrapper
 from teleop.utils.error_logger import IndependentErrorLogger
+from teleop.utils.trajectory_generator import SquareTrajectoryGenerator
+from teleop.utils.mock_tele_data import MockTeleData
 from sshkeyboard import listen_keyboard, stop_listening
 
 # for simulation
@@ -99,6 +101,7 @@ if __name__ == "__main__":
     parser.add_argument('--img-server-ip', type=str, default='192.168.123.164', help='IP address of image server, used by teleimager and televuer')
     parser.add_argument('--network-interface', type=str, default=None, help='Network interface for dds communication, e.g., eth0, wlan0. If None, use default interface.')
     # mode flags
+    parser.add_argument('--trajectory', action='store_true', default=False, help="Use square trajectory instead of VR input")
     parser.add_argument('--motion', action = 'store_true', help = 'Enable motion control mode')
     parser.add_argument('--headless', action='store_true', help='Enable headless mode (no display)')
     parser.add_argument('--sim', action = 'store_true', help = 'Enable isaac simulation mode')
@@ -143,17 +146,21 @@ if __name__ == "__main__":
         xr_need_local_img = not (args.display_mode == 'pass-through' or camera_config['head_camera']['enable_webrtc'])
 
         # televuer_wrapper: obtain hand pose data from the XR device and transmit the robot's head camera image to the XR device.
-        tv_wrapper = TeleVuerWrapper(use_hand_tracking=args.input_mode == "hand", 
-                                     binocular=camera_config['head_camera']['binocular'],
-                                     img_shape=camera_config['head_camera']['image_shape'],
-                                     # maybe should decrease fps for better performance?
-                                     # https://github.com/unitreerobotics/xr_teleoperate/issues/172
-                                     # display_fps=camera_config['head_camera']['fps'] ? args.frequency? 30.0?
-                                     display_mode=args.display_mode,
-                                     zmq=camera_config['head_camera']['enable_zmq'],
-                                     webrtc=camera_config['head_camera']['enable_webrtc'],
-                                     webrtc_url=f"https://{args.img_server_ip}:{camera_config['head_camera']['webrtc_port']}/offer",
-                                     )
+        if not args.trajectory:
+            tv_wrapper = TeleVuerWrapper(use_hand_tracking=args.input_mode == "hand", 
+                                         binocular=camera_config['head_camera']['binocular'],
+                                         img_shape=camera_config['head_camera']['image_shape'],
+                                         # maybe should decrease fps for better performance?
+                                         # https://github.com/unitreerobotics/xr_teleoperate/issues/172
+                                         # display_fps=camera_config['head_camera']['fps'] ? args.frequency? 30.0?
+                                         display_mode=args.display_mode,
+                                         zmq=camera_config['head_camera']['enable_zmq'],
+                                         webrtc=camera_config['head_camera']['enable_webrtc'],
+                                         webrtc_url=f"https://{args.img_server_ip}:{camera_config['head_camera']['webrtc_port']}/offer",
+                                         )
+        else:
+            tv_wrapper = None
+            logger_mp.info("Trajectory Mode: TeleVuer skipped")
         
         # motion mode (G1: Regular mode R1+X, not Running mode R2+A)
         if args.motion:
@@ -264,6 +271,12 @@ if __name__ == "__main__":
         error_logger = IndependentErrorLogger()
         logger_mp.info(f"Error logging initialized at {error_logger.log_file}")
 
+        # Initialize trajectory generator if enabled
+        traj_gen = None
+        if args.trajectory:
+            traj_gen = SquareTrajectoryGenerator(center_pos=[0.35, -0.25, 0.35], side_length=0.2, period=8.0)
+            logger_mp.info("🔵 Trajectory Mode Enabled: Generating Square Path for RIGHT Hand")
+
         logger_mp.info("----------------------------------------------------------------")
         logger_mp.info("🟢  Press [r] to start syncing the robot with your movements.")
         if args.record:
@@ -319,7 +332,19 @@ if __name__ == "__main__":
                         publish_reset_category(1, reset_pose_publisher)
 
             # get xr's tele data
-            tele_data = tv_wrapper.get_tele_data()
+            if tv_wrapper is not None:
+                tele_data = tv_wrapper.get_tele_data()
+            else:
+                tele_data = MockTeleData() # Use mock data if TV is disabled
+
+            # Override RIGHT hand target if trajectory mode is enabled
+            if args.trajectory and traj_gen is not None:
+                # Get generated position [x, y, z]
+                gen_pos = traj_gen.get_target(time.time())
+                # Reset to Identity first
+                tele_data.right_wrist_pose = np.eye(4)
+                # Set Position
+                tele_data.right_wrist_pose[:3, 3] = gen_pos
             if (args.ee == "dex3" or args.ee == "inspire_dfx" or args.ee == "inspire_ftp" or args.ee == "brainco") and args.input_mode == "hand":
                 with left_hand_pos_array.get_lock():
                     left_hand_pos_array[:] = tele_data.left_hand_pos.flatten()
@@ -410,9 +435,9 @@ if __name__ == "__main__":
                 # Write VR targets to shared memory for Isaac Lab visualization
                 if args.sim:
                     try:
-                        # Extract translation
-                        l_pos = tele_data.left_wrist_pose[:3, 3]
-                        r_pos = tele_data.right_wrist_pose[:3, 3]
+                        # Extract translation (ensure numpy array)
+                        l_pos = np.array(tele_data.left_wrist_pose[:3, 3])
+                        r_pos = np.array(tele_data.right_wrist_pose[:3, 3])
                         
                         # Extract rotation and convert to quaternion [x, y, z, w]
                         l_rot_mat = tele_data.left_wrist_pose[:3, :3]
@@ -634,10 +659,11 @@ if __name__ == "__main__":
         except Exception as e:
             logger_mp.error(f"Failed to close image client: {e}")
 
-        try:
-            tv_wrapper.close()
-        except Exception as e:
-            logger_mp.error(f"Failed to close televuer wrapper: {e}")
+        if tv_wrapper is not None:
+            try:
+                tv_wrapper.close()
+            except Exception as e:
+                logger_mp.error(f"Failed to close televuer wrapper: {e}")
 
         try:
             if not args.motion:

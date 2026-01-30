@@ -1,44 +1,58 @@
+(tv) *[main][~/Documents/codes/xr_teleoperate/teleop]$ python teleop_hand_and_arm.py --ee=dex3 --sim --record --img-server-ip=192.168.20.152 --trajectory                                   
+17:52:06:066668 INFO     args: Namespace(frequency=30.0, input_mode='hand', display_mode='immersive', arm='G1_29', ee='dex3', img_server_ip='192.168.20.152', network_interface=None, trajectory=True, motion=False,           teleop_hand_and_arm.py:119
+                         headless=False, sim=True, ipc=False, affinity=False, record=True, task_dir='./utils/data/', task_name='pick cube', task_goal='pick up cube.', task_desc='task description', task_steps='step1: do                               
+                         this; step2: do that;')                                                                                                                                                                                                         
+17:52:06:075494 INFO     Received camera config from server 192.168.20.152:60000                                                                                                                                                      image_client.py:534
+17:52:06:076790 INFO     Saved camera config to local /home/user/Documents/codes/xr_teleoperate/teleop/teleimager/cam_config_client.yaml                                                                                              image_client.py:537
+17:52:06:081793 INFO     Trajectory Mode: TeleVuer skipped                                                                                                                                                                     teleop_hand_and_arm.py:163
+[ClientStub] send request error. id: 960199320310247
+17:52:07:905611 INFO     Enter debug mode: Failed                                                                                                                                                                              teleop_hand_and_arm.py:172
+17:52:07:905777 INFO     [G1_29_ArmIK] >>> Loading cached robot model: g1_29_model_cache.pkl                                                                                                                                           robot_arm_ik.py:37
+17:52:07:914818 INFO     Initialize G1_29_ArmController...                                                                                                                                                                                robot_arm.py:63
+17:52:08:219925 WARNING  [G1_29_ArmController] Waiting to subscribe dds...                                                                                                                                                                robot_arm.py:99
+17:52:08:220004 INFO     [G1_29_ArmController] Subscribe dds ok.                                                                                                                                                                         robot_arm.py:100
+17:52:08:255994 INFO     Lock all joints except two arms...                                                                                                                                                                              robot_arm.py:111
+17:52:08:256139 INFO     Lock OK!                                                                                                                                                                                                        robot_arm.py:131
+17:52:08:256729 INFO     Initialize G1_29_ArmController OK!                                                                                                                                                                              robot_arm.py:139
+17:52:08:976734 INFO     Initialize Dex3_1_Controller...                                                                                                                                                                         robot_hand_unitree.py:56
+ Target link human indices is provided in the DexPilot retargeting config, which is uncommon.
+If you do not know exactly how it is used, please leave it to None for default.
 
-=== While loop execution frequency statistics ===
-loop execution count: 13866
-running time: 400.62 seconds
-overall average frequency: 34.61 Hz
-moving average frequency: 32.80 Hz (last 100 times)
-frequency range: 26.25 - 36.50 Hz
-average loop time: 28.89 ms
-recent loop time: 30.49 ms
-=============================
-[Viz] Local L: [ 0.9963559 -0.3034133  0.6695156] | World L: [0.15339419 0.9963616  1.4295156 ]
-[Viz] Local R: [ 1.2334728  -0.43711996  0.61820704] | World R: [0.28709623 1.2334812  1.378207  ]
-[Viz] Local L: [ 0.9963559 -0.3034133  0.6695156] | World L: [0.15339419 0.9963616  1.4295156 ]
-[Viz] Local R: [ 1.2334728  -0.43711996  0.61820704] | World R: [0.28709623 1.2334812  1.378207  ]
-[Performance] A:0.1ms, E:29.1ms, S:0.0ms, T:29.2ms
-[Viz] Local L: [ 0.9963559 -0.3034133  0.6695156] | World L: [0.15339419 0.9963616  1.4295156 ]
-[Viz] Local R: [ 1.2334728  -0.43711996  0.61820704] | World R: [0.28709623 1.2334812  1.378207  ]
-[Viz] Local L: [ 0.9963559 -0.3034133  0.6695156] | World L: [0.15339419 0.9963616  1.4295156 ]
-[Viz] Local R: [ 1.2334728  -0.43711996  0.61820704] | World R: [0.28709623 1.2334812  1.378207  ]
-^CProcess LogListenerProcess:
-Traceback (most recent call last):
-  File "/home/user/anaconda3/envs/unitree_sim_env/lib/python3.10/multiprocessing/process.py", line 314, in _bootstrap
-    self.run()
-  File "/home/user/anaconda3/envs/unitree_sim_env/lib/python3.10/multiprocessing/process.py", line 108, in run
-    self._target(*self._args, **self._kwargs)
-  File "/home/user/anaconda3/envs/unitree_sim_env/lib/python3.10/site-packages/logging_mp/__init__.py", line 38, in _listener_process
-    _stop_process_event.wait()
-  File "/home/user/anaconda3/envs/unitree_sim_env/lib/python3.10/multiprocessing/synchronize.py", line 349, in wait
-    self._cond.wait(timeout)
-  File "/home/user/anaconda3/envs/unitree_sim_env/lib/python3.10/multiprocessing/synchronize.py", line 261, in wait
-    return self._wait_semaphore.acquire(True, timeout)
-KeyboardInterrupt
+ Target link human indices is provided in the DexPilot retargeting config, which is uncommon.
+If you do not know exactly how it is used, please leave it to None for default.
 
-received signal 2, stopping controller...
-[DDSActionProvider] ActionProvider stop
-[DDSActionProvider] ActionProvider stopped
-[SimpleController] the controller is stopped
-[DDSManager] publish loop thread stopped
-^C
-received signal 2, stopping controller...
-^C
-received signal 2, stopping controller...
-^C
-received signal 2, stopping controller...
+17:52:09:399981 WARNING  [Dex3_1_Controller] Waiting to subscribe dds...                                                                                                                                                         robot_hand_unitree.py:90
+17:52:09:400050 INFO     [Dex3_1_Controller] Subscribe dds ok.                                                                                                                                                                   robot_hand_unitree.py:91
+17:52:09:407163 INFO     Initialize Dex3_1_Controller OK!                                                                                                                                                                        robot_hand_unitree.py:98
+17:52:09:612253 INFO     [SimStateSubscriber] Started subscribing to rt/sim_state                                                                                                                                                  sim_state_topic.py:165
+[2026-01-30T09:52:09Z INFO  re_sdk::spawn] A process is already listening at this address. Assuming it's a Rerun Viewer. addr=0.0.0.0:9876
+17:52:09:612337 INFO     ==> EpisodeWriter initializing...                                                                                                                                                                           episode_writer.py:18
+                                                                                                                                                                                                                                                         
+17:52:09:612361 INFO     ==> RerunLogger initializing...                                                                                                                                                                             episode_writer.py:37
+                                                                                                                                                                                                                                                         
+17:52:09:617978 INFO     ==> RerunLogger initializing ok.                                                                                                                                                                            episode_writer.py:39
+                                                                                                                                                                                                                                                         
+17:52:09:618846 INFO     ==> task_dir directory already exist, now self.episode_id is:0                                                                                                                                              episode_writer.py:47
+                                                                                                                                                                                                                                                         
+17:52:09:619167 INFO     ==> EpisodeWriter initialized successfully.                                                                                                                                                                 episode_writer.py:61
+                                                                                                                                                                                                                                                         
+17:52:09:619346 INFO     Error logging initialized at ./utils/data/error_logs/error_log_20260130_175209.jsonl                                                                                                                  teleop_hand_and_arm.py:272
+17:52:09:619389 INFO     🔵 Trajectory Mode Enabled: Generating Square Path for RIGHT Hand                                                                                                                                     teleop_hand_and_arm.py:284
+17:52:09:619399 INFO     ----------------------------------------------------------------                                                                                                                                      teleop_hand_and_arm.py:286
+17:52:09:619408 INFO     🟢  Press [r] to start syncing the robot with your movements.                                                                                                                                         teleop_hand_and_arm.py:287
+17:52:09:619416 INFO     🟡  Press [s] to START or SAVE recording (toggle cycle).                                                                                                                                              teleop_hand_and_arm.py:289
+17:52:09:619423 INFO     🔴  Press [q] to stop and exit the program.                                                                                                                                                           teleop_hand_and_arm.py:292
+17:52:09:619432 INFO     ⚠️  IMPORTANT: Please keep your distance and stay safe.                                                                                                                                               teleop_hand_and_arm.py:293
+17:52:16:430064 INFO     ---------------------🚀start Tracking🚀-------------------------                                                                                                                                      teleop_hand_and_arm.py:301
+17:52:16:430713 ERROR    Traceback (most recent call last):                                                                                                                                                                    teleop_hand_and_arm.py:647
+                           File "/home/user/Documents/codes/xr_teleoperate/teleop/teleop_hand_and_arm.py", line 356, in <module>                                                                                                                         
+                             left_hand_pos_array[:] = tele_data.left_hand_pos.flatten()                                                                                                                                                                  
+                           File "/home/user/anaconda3/envs/tv/lib/python3.10/multiprocessing/sharedctypes.py", line 227, in __setitem__                                                                                                                  
+                             self._obj[i] = value                                                                                                                                                                                                        
+                         ValueError: Can only assign sequence of same size                                                                                                                                                                               
+                                                                                                                                                                                                                                                         
+17:52:16:430745 INFO     [G1_29_ArmController] ctrl_dual_arm_go_home start...                                                                                                                                                            robot_arm.py:218
+17:52:16:430822 INFO     [G1_29_ArmController] both arms have reached the home position.                                                                                                                                                 robot_arm.py:232
+17:52:16:471766 INFO     Image client has been closed.                                                                                                                                                                                image_client.py:620
+17:52:16:476386 INFO     [SimStateSubscriber] Subscriber stopped                                                                                                                                                                   sim_state_topic.py:205
+17:52:16:619797 INFO     ✅ Finally, exiting program.       
