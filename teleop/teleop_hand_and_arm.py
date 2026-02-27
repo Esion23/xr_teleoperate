@@ -391,46 +391,44 @@ if __name__ == "__main__":
 
             # Error Analysis
             try:
-                # 1. Tracking Error: Target vs Actual (FK)
-                # Now compute_fk returns pos and rot matrices
-                l_fk_pos, r_fk_pos, l_fk_rot, r_fk_rot = arm_ik.compute_fk(current_lr_arm_q)
-                
-                # tele_data.left_wrist_pose is 4x4 matrix
-                target_l_pos = tele_data.left_wrist_pose[:3, 3]
-                target_r_pos = tele_data.right_wrist_pose[:3, 3]
-                target_l_rot = tele_data.left_wrist_pose[:3, :3]
-                target_r_rot = tele_data.right_wrist_pose[:3, :3]
-                
-                # Use LAST frame's target to compute steady-state tracking error
-                if last_target_l_pos is not None:
-                    # Position Error (Euclidean distance)
-                    track_pos_err_l = np.linalg.norm(last_target_l_pos - l_fk_pos)
-                    track_pos_err_r = np.linalg.norm(last_target_r_pos - r_fk_pos)
+                # Log raw data for post-processing error analysis and trajectory visualization
+                if START:
+                    # Current Actual FK (Position and Rotation)
+                    l_fk_pos, r_fk_pos, l_fk_rot, r_fk_rot = arm_ik.compute_fk(current_lr_arm_q)
                     
-                    # Rotation Error (Geodesic distance / Angle difference)
-                    R_diff_l = last_target_l_rot @ l_fk_rot.T
-                    track_rot_err_l = np.arccos(np.clip((np.trace(R_diff_l) - 1) / 2, -1.0, 1.0))
+                    # Current Solution FK (Position and Rotation)
+                    l_sol_pos, r_sol_pos, l_sol_rot, r_sol_rot = arm_ik.compute_fk(sol_q)
                     
-                    R_diff_r = last_target_r_rot @ r_fk_rot.T
-                    track_rot_err_r = np.arccos(np.clip((np.trace(R_diff_r) - 1) / 2, -1.0, 1.0))
-                else:
-                    track_pos_err_l = 0.0
-                    track_pos_err_r = 0.0
-                    track_rot_err_l = 0.0
-                    track_rot_err_r = 0.0
-
-                
-                # 2. Solver Error: Target vs Solution (FK)
-                l_sol_pos, r_sol_pos, l_sol_rot, r_sol_rot = arm_ik.compute_fk(sol_q)
-                
-                solve_pos_err_l = np.linalg.norm(target_l_pos - l_sol_pos)
-                solve_pos_err_r = np.linalg.norm(target_r_pos - r_sol_pos)
-                
-                R_sol_diff_l = target_l_rot @ l_sol_rot.T
-                solve_rot_err_l = np.arccos(np.clip((np.trace(R_sol_diff_l) - 1) / 2, -1.0, 1.0))
-                
-                R_sol_diff_r = target_r_rot @ r_sol_rot.T
-                solve_rot_err_r = np.arccos(np.clip((np.trace(R_sol_diff_r) - 1) / 2, -1.0, 1.0))
+                    # Current Target (from TeleData)
+                    # Note: For Tracking Error (Steady-state), analysis script should compare Target[t-1] with Actual[t]
+                    # We just log everything at time t.
+                    
+                    log_data = {
+                        # Targets (Cartesian)
+                        "target_l_pos": tele_data.left_wrist_pose[:3, 3].tolist(),
+                        "target_r_pos": tele_data.right_wrist_pose[:3, 3].tolist(),
+                        "target_l_rot": tele_data.left_wrist_pose[:3, :3].tolist(),
+                        "target_r_rot": tele_data.right_wrist_pose[:3, :3].tolist(),
+                        
+                        # Actual FK (Cartesian)
+                        "actual_l_pos": l_fk_pos.tolist(),
+                        "actual_r_pos": r_fk_pos.tolist(),
+                        "actual_l_rot": l_fk_rot.tolist(),
+                        "actual_r_rot": r_fk_rot.tolist(),
+                        
+                        # Solution FK (Cartesian) - for Solver Error
+                        "sol_l_pos": l_sol_pos.tolist(),
+                        "sol_r_pos": r_sol_pos.tolist(),
+                        "sol_l_rot": l_sol_rot.tolist(),
+                        "sol_r_rot": r_sol_rot.tolist(),
+                        
+                        # Joint Space Data - for Execution Error
+                        "cmd_joints": sol_q.tolist(),          # What we told it to do (at t)
+                        "actual_joints": current_lr_arm_q.tolist(), # What it is doing (at t)
+                        
+                        "ik_time": float(time_ik_end - time_ik_start)
+                    }
+                    error_logger.log(time.time(), log_data)
 
                 # Write VR targets to shared memory for Isaac Lab visualization
                 if args.sim:
@@ -440,6 +438,8 @@ if __name__ == "__main__":
                         r_pos = np.array(tele_data.right_wrist_pose[:3, 3])
                         
                         # Extract rotation and convert to quaternion [x, y, z, w]
+                        # In Vision Pro mode, this comes from TeleVuer (Rotation Matrix)
+                        # In Trajectory mode, this comes from MockTeleData (Identity Matrix)
                         l_rot_mat = tele_data.left_wrist_pose[:3, :3]
                         r_rot_mat = tele_data.right_wrist_pose[:3, :3]
                         l_quat = rotation_matrix_to_quaternion(l_rot_mat)
@@ -454,38 +454,11 @@ if __name__ == "__main__":
                     except Exception as e:
                         logger_mp.warning(f"Failed to write visualization poses: {e}")
 
-                # 3. Execution Error: Solution vs Actual (Joint Space)
-                # Compare current actual state with LAST frame's target command
-                if last_sol_q is not None:
-                    exec_err = np.linalg.norm(last_sol_q - current_lr_arm_q)
-                else:
-                    exec_err = 0.0
-                
-                # Update history
+                # Update history (Kept for compatibility if needed, but not used for logging anymore)
                 last_sol_q = sol_q.copy()
-                last_target_l_pos = target_l_pos.copy()
-                last_target_r_pos = target_r_pos.copy()
-                last_target_l_rot = target_l_rot.copy()
-                last_target_r_rot = target_r_rot.copy()
-
-                # Log errors independently if START is True (robot is following VR)
-                if START:
-                    error_data = {
-                        "track_pos_err_l": float(track_pos_err_l),
-                        "track_pos_err_r": float(track_pos_err_r),
-                        "track_rot_err_l": float(track_rot_err_l),
-                        "track_rot_err_r": float(track_rot_err_r),
-                        "solve_pos_err_l": float(solve_pos_err_l),
-                        "solve_pos_err_r": float(solve_pos_err_r),
-                        "solve_rot_err_l": float(solve_rot_err_l),
-                        "solve_rot_err_r": float(solve_rot_err_r),
-                        "exec_err": float(exec_err),
-                        "ik_time": float(time_ik_end - time_ik_start)
-                    }
-                    error_logger.log(time.time(), error_data)
 
             except Exception as e:
-                logger_mp.warning(f"Error calculation failed: {e}")
+                logger_mp.warning(f"Error calculation/logging failed: {e}")
 
             # record data
             if args.record:
